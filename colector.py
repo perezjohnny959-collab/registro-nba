@@ -1,16 +1,24 @@
-# colector.py: registra líneas prepartido y actualiza resultados
+# colector.py: registra líneas prepartido y actualiza resultados (CSV + Firestore)
 import os
+import json
 import time
 import statistics
 import datetime as dt
 import pandas as pd
 import requests
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 API_KEY = os.environ["API_KEY"]
 HEADERS = {"x-apisports-key": API_KEY}
 BASE = "https://v1.basketball.api-sports.io"
 REG = "registro_en_vivo.csv"
 SEASON = "2026-2027"
+COLECCION = "juegos"
+
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(credentials.Certificate(json.loads(os.environ["FIREBASE_KEY"])))
+db = firestore.client()
 
 
 def ahora_utc():
@@ -79,7 +87,7 @@ def registrar(dias_adelante=1):
             time.sleep(0.5)
             if c is None:
                 continue
-            filas.append({
+            fila = {
                 "id": g["id"],
                 "fecha_utc": g["date"],
                 "equipo_local": g["teams"]["home"]["name"],
@@ -87,13 +95,16 @@ def registrar(dias_adelante=1):
                 "capturado_utc": ahora_utc().isoformat(timespec="minutes"),
                 **c,
                 "pts_final": None,
-            })
-    nuevo = pd.DataFrame(filas)
-    if os.path.exists(REG):
-        viejo = pd.read_csv(REG)
-        nuevo = pd.concat([viejo, nuevo]).drop_duplicates(subset="id", keep="last")
-    nuevo.to_csv(REG, index=False)
-    print("Juegos registrados:", len(filas), "| total en archivo:", len(nuevo))
+            }
+            filas.append(fila)
+            db.collection(COLECCION).document(str(g["id"])).set(fila, merge=True)
+    if filas or os.path.exists(REG):
+        nuevo = pd.DataFrame(filas)
+        if os.path.exists(REG):
+            viejo = pd.read_csv(REG)
+            nuevo = pd.concat([viejo, nuevo]).drop_duplicates(subset="id", keep="last")
+        nuevo.to_csv(REG, index=False)
+    print("Juegos registrados:", len(filas))
 
 
 def actualizar_resultados():
@@ -103,14 +114,17 @@ def actualizar_resultados():
     df = pd.read_csv(REG)
     pend = df[df["pts_final"].isna()]
     fechas = sorted(set(pd.to_datetime(pend["fecha_utc"]).dt.date.astype(str)))
+    actualizados = 0
     for f in fechas:
         for g in juegos_del_dia(f):
             if g["status"]["short"] == "FT":
-                m = df["id"] == g["id"]
-                df.loc[m, "pts_final"] = g["scores"]["home"]["total"] + g["scores"]["away"]["total"]
+                total = int(g["scores"]["home"]["total"] + g["scores"]["away"]["total"])
+                df.loc[df["id"] == g["id"], "pts_final"] = total
+                db.collection(COLECCION).document(str(g["id"])).set({"pts_final": total}, merge=True)
+                actualizados += 1
         time.sleep(0.5)
     df.to_csv(REG, index=False)
-    print("Resultados pendientes:", int(df["pts_final"].isna().sum()))
+    print("Resultados actualizados:", actualizados, "| pendientes:", int(df["pts_final"].isna().sum()))
 
 
 if __name__ == "__main__":
