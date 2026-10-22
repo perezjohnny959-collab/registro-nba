@@ -1,0 +1,32 @@
+name: NBA registro diario
+
+on:
+  schedule:
+    - cron: "0 12 * * *"   # 8:00 a. m. RD: registra líneas del día
+    - cron: "0 6 * * *"    # 2:00 a. m. RD: actualiza resultados
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  registro:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests pandas
+      - name: Ejecutar colector
+        env:
+          API_KEY: ${{ secrets.API_SPORTS_KEY }}
+          MODO: ${{ github.event.schedule == '0 6 * * *' && 'resultados' || 'registro' }}
+        run: python colector.py
+      - name: Guardar CSV en el repositorio
+        run: |
+          git config user.name "registro-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add registro_en_vivo.csv
+          git diff --cached --quiet || git commit -m "Actualizar registro"
+          git push
