@@ -1,0 +1,9 @@
+id,fecha_utc,equipo_local,equipo_visita,capturado_utc,linea_mediana,n_casas,linea_pinnacle,over_pinnacle,under_pinnacle,pts_final
+519547,2026-10-22T23:00:00+00:00,Philadelphia 76ers,Cleveland Cavaliers,2026-10-22T22:12+00:00,237.0,9,237.5,1.93,1.95,
+519548,2026-10-23T01:30:00+00:00,Oklahoma City Thunder,Denver Nuggets,2026-10-22T22:12+00:00,235.5,6,236.5,1.94,1.91,
+519555,2026-10-23T20:00:00+00:00,Milwaukee Bucks,Chicago Bulls,2026-10-22T22:12+00:00,238.5,4,238.5,1.93,1.93,
+519549,2026-10-23T23:00:00+00:00,Washington Wizards,Toronto Raptors,2026-10-22T22:12+00:00,236.25,4,236.0,1.93,1.93,
+519550,2026-10-23T23:00:00+00:00,Orlando Magic,Minnesota Timberwolves,2026-10-22T22:12+00:00,237.75,4,238.0,1.93,1.93,
+519551,2026-10-23T23:00:00+00:00,Indiana Pacers,Dallas Mavericks,2026-10-22T22:12+00:00,235.75,4,236.0,1.93,1.93,
+519552,2026-10-23T23:00:00+00:00,Charlotte Hornets,Atlanta Hawks,2026-10-22T22:12+00:00,225.5,4,225.0,1.95,1.92,
+519553,2026-10-23T23:00:00+00:00,Boston Celtics,New York Knicks,2026-10-22T22:12+00:00,223.5,5,223.5,1.94,1.93,
