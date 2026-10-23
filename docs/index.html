@@ -50,9 +50,11 @@ h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02e
 .linea{font-family:var(--display);font-weight:800;font-size:28px;color:var(--accent);line-height:1}
 .der{text-align:right}
 .sim{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
-.simrow{display:flex;gap:8px}
+.simrow{display:flex;gap:8px;align-items:stretch}
 .simrow input{flex:1;min-width:0;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:inherit;font-size:16px}
-.simrow button{background:var(--accent);color:#06121a;border:0;border-radius:8px;padding:0 16px;font-family:var(--display);font-weight:800;font-size:16px;cursor:pointer}
+.simrow button{border:0;border-radius:8px;padding:0 16px;font-family:var(--display);font-weight:800;font-size:16px;cursor:pointer;color:#06121a}
+.simrow button[data-reg="OVER"]{background:var(--over)}
+.simrow button[data-reg="UNDER"]{background:var(--under)}
 .simrow button:disabled{background:#2a3a4a;color:var(--muted);cursor:not-allowed}
 .simres{font-family:var(--mono);font-size:12px;margin:8px 0 0}
 </style>
@@ -185,21 +187,23 @@ function seccionSim(j, ritmo) {
   const a = apuestaPorId[j.id];
   if (a) {
     const r = resultado(a, j);
-    const txt = r == null ? `Señal registrada: ${a.lado} ${a.linea_casa} · ritmo ${a.ritmo}`
-      : r > 0 ? `Señal: ${a.lado} ${a.linea_casa} · ACERTÓ +${r.toFixed(2)} u`
-      : r < 0 ? `Señal: ${a.lado} ${a.linea_casa} · FALLÓ ${r.toFixed(2)} u`
-      : `Señal: ${a.lado} ${a.linea_casa} · PUSH 0 u`;
+    const txt = r == null ? `Tu elección: ${a.lado} ${a.linea_casa} · ritmo ${a.ritmo}`
+      : r > 0 ? `Tu elección: ${a.lado} ${a.linea_casa} · ACERTÓ +${r.toFixed(2)} u`
+      : r < 0 ? `Tu elección: ${a.lado} ${a.linea_casa} · FALLÓ ${r.toFixed(2)} u`
+      : `Tu elección: ${a.lado} ${a.linea_casa} · PUSH 0 u`;
     const color = r == null ? "var(--muted)" : r > 0 ? "var(--over)" : r < 0 ? "var(--under)" : "#ffb300";
     return `<div class="sim"><p class="simres" style="color:${color}">${txt}</p></div>`;
   }
-  if (ritmo == null || j.pts_final != null) return "";
+  if (j.pts_final != null) return "";
+  const r = ritmo ?? 0;
   return `
-  <div class="sim" data-id="${j.id}" data-ritmo="${ritmo}">
+  <div class="sim" data-id="${j.id}" data-ritmo="${r}">
     <div class="simrow">
       <input inputmode="decimal" placeholder="Línea de la casa" value="${borrador[j.id] ?? ""}" data-linea="${j.id}">
-      <button data-reg="${j.id}" disabled>Registrar</button>
+      <button data-reg="OVER" disabled>OVER</button>
+      <button data-reg="UNDER" disabled>UNDER</button>
     </div>
-    <p class="meta" data-msg>Escribe la línea de la casa</p>
+    <p class="meta" data-msg>Escribe la línea de la casa para elegir OVER o UNDER</p>
   </div>`;
 }
 
@@ -207,12 +211,13 @@ function actualizarSenal(simDiv) {
   const ritmo = Number(simDiv.dataset.ritmo);
   const id = simDiv.dataset.id;
   const linea = parseFloat((borrador[id] ?? "").replace(",", "."));
-  const lado = isNaN(linea) ? null : senal(ritmo, linea);
-  simDiv.querySelector("[data-reg]").disabled = !lado;
+  const valida = !isNaN(linea);
+  simDiv.querySelectorAll("[data-reg]").forEach(b => b.disabled = !valida);
+  const lado = valida ? senal(ritmo, linea) : null;
   simDiv.querySelector("[data-msg]").textContent =
-    isNaN(linea) ? "Escribe la línea de la casa"
-    : lado ? `Señal: ${lado}`
-    : `Sin señal: a menos de ${UMBRAL} puntos de la línea`;
+    !valida ? "Escribe la línea de la casa para elegir OVER o UNDER"
+    : lado ? `Señal de la regla: ${lado}`
+    : `Señal de la regla: ninguna (ritmo a menos de ${UMBRAL} puntos de la línea)`;
 }
 
 const lista = $("lista");
@@ -225,14 +230,15 @@ lista.addEventListener("input", e => {
 
 lista.addEventListener("click", async e => {
   const btn = e.target.closest("[data-reg]");
-  if (!btn) return;
-  const id = btn.dataset.reg;
+  if (!btn || btn.disabled) return;
+  const id = btn.closest(".sim").dataset.id;
   const ritmo = Number(btn.closest(".sim").dataset.ritmo);
   const linea = parseFloat((borrador[id] ?? "").replace(",", "."));
-  const lado = isNaN(linea) ? null : senal(ritmo, linea);
-  if (!lado) return;
+  if (isNaN(linea)) return;
   try {
-    await setDoc(doc(db, "simulador", id), { lado, linea_casa: linea, ritmo, odd: ODD, creado_utc: Date.now() });
+    await setDoc(doc(db, "simulador", id), {
+      lado: btn.dataset.reg, linea_casa: linea, ritmo, odd: ODD, creado_utc: Date.now()
+    });
   } catch (err) {
     showError(err.message);
   }
