@@ -34,6 +34,7 @@ h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02e
 .sec{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin:18px 0 8px}
 .pos{color:var(--over)} .neg{color:var(--under)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.card.live{border-color:var(--live)}
 .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
 .fecha{font-family:var(--mono);font-size:12px;color:var(--muted)}
 .chip{font-family:var(--display);font-weight:800;font-size:15px;padding:4px 10px;border-radius:6px;color:#0a0d12;white-space:nowrap}
@@ -93,6 +94,17 @@ const fmtFecha = iso => new Intl.DateTimeFormat("es-DO", {
 const enCurso = j => j.pts_final == null && EN_JUEGO.includes(j.estado);
 const senal = (ritmo, linea) => ritmo >= linea + UMBRAL ? "OVER" : ritmo <= linea - UMBRAL ? "UNDER" : null;
 
+// 0 = en curso, 1 = próximo, 2 = terminado
+const grupo = j => enCurso(j) ? 0 : j.pts_final == null ? 1 : 2;
+const ordenar = (a, b) => {
+  const g = grupo(a) - grupo(b);
+  if (g !== 0) return g;
+  // terminados: el más reciente primero; los demás: el más próximo primero
+  return grupo(a) === 2
+    ? (a.fecha_utc < b.fecha_utc ? 1 : -1)
+    : (a.fecha_utc < b.fecha_utc ? -1 : 1);
+};
+
 // unidades ganadas (+) o perdidas (-); null si el juego no ha terminado
 function resultado(a, j) {
   const total = j?.pts_final;
@@ -141,7 +153,7 @@ function render() {
       <div class="kpi ${roi >= 0 ? "pos" : "neg"}">${roi.toFixed(1)}%<small>ROI</small></div>
     </div>`;
 
-  $("lista").innerHTML = juegos.map(tarjeta).join("");
+  $("lista").innerHTML = [...juegos].sort(ordenar).map(tarjeta).join("");
 }
 
 const fila = (nombre, mitad, pts) => `
@@ -155,7 +167,7 @@ function tarjeta(j) {
   const ritmo = ml != null && mv != null ? (ml + mv) * 2 : null;
   const e = etiqueta(j);
   return `
-  <article class="card">
+  <article class="card${enCurso(j) ? " live" : ""}">
     <div class="top"><span class="fecha">${fmtFecha(j.fecha_utc)}</span><span class="chip ${e.clase}">${e.texto}</span></div>
     ${fila(j.equipo_visita, mv, j.pts_visita)}
     ${fila(j.equipo_local, ml, j.pts_local)}
