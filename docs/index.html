@@ -99,7 +99,6 @@ const grupo = j => enCurso(j) ? 0 : j.pts_final == null ? 1 : 2;
 const ordenar = (a, b) => {
   const g = grupo(a) - grupo(b);
   if (g !== 0) return g;
-  // terminados: el más reciente primero; los demás: el más próximo primero
   return grupo(a) === 2
     ? (a.fecha_utc < b.fecha_utc ? 1 : -1)
     : (a.fecha_utc < b.fecha_utc ? -1 : 1);
@@ -137,6 +136,7 @@ function render() {
   const aciertos = res.filter(r => r > 0).length;
   const unidades = res.reduce((s, r) => s + r, 0);
   const roi = res.length ? unidades * 100 / res.length : 0;
+  const pctAciertos = res.length ? (aciertos * 100 / res.length).toFixed(1) : "0.0";
 
   $("resumen").innerHTML = `
     <div class="grid">
@@ -147,8 +147,8 @@ function render() {
     </div>
     <div class="sec">Simulador (sin dinero real)</div>
     <div class="grid">
-      <div class="kpi">${apuestas.length}<small>apuestas · ${res.length} con resultado</small></div>
-      <div class="kpi">${aciertos}<small>aciertos</small></div>
+      <div class="kpi">${apuestas.length}<small>señales registradas · ${res.length} con resultado</small></div>
+      <div class="kpi">${pctAciertos}%<small>aciertos · ${aciertos} de ${res.length}</small></div>
       <div class="kpi ${unidades >= 0 ? "pos" : "neg"}">${unidades.toFixed(2)}<small>unidades</small></div>
       <div class="kpi ${roi >= 0 ? "pos" : "neg"}">${roi.toFixed(1)}%<small>ROI</small></div>
     </div>`;
@@ -185,10 +185,10 @@ function seccionSim(j, ritmo) {
   const a = apuestaPorId[j.id];
   if (a) {
     const r = resultado(a, j);
-    const txt = r == null ? `Simulada: ${a.lado} ${a.linea_casa} · ritmo ${a.ritmo}`
-      : r > 0 ? `Simulada: ${a.lado} ${a.linea_casa} · GANA +${r.toFixed(2)} u`
-      : r < 0 ? `Simulada: ${a.lado} ${a.linea_casa} · PIERDE ${r.toFixed(2)} u`
-      : `Simulada: ${a.lado} ${a.linea_casa} · PUSH 0 u`;
+    const txt = r == null ? `Señal registrada: ${a.lado} ${a.linea_casa} · ritmo ${a.ritmo}`
+      : r > 0 ? `Señal: ${a.lado} ${a.linea_casa} · ACERTÓ +${r.toFixed(2)} u`
+      : r < 0 ? `Señal: ${a.lado} ${a.linea_casa} · FALLÓ ${r.toFixed(2)} u`
+      : `Señal: ${a.lado} ${a.linea_casa} · PUSH 0 u`;
     const color = r == null ? "var(--muted)" : r > 0 ? "var(--over)" : r < 0 ? "var(--under)" : "#ffb300";
     return `<div class="sim"><p class="simres" style="color:${color}">${txt}</p></div>`;
   }
