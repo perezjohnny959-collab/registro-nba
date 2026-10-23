@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partidos NBA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0d12; --panel:#121820; --panel2:#0f151d; --line:#1f2a36;
+  --fg:#e8eef5; --muted:#7d8ea0;
+  --over:#2ee08a; --under:#ff5d6c; --live:#ffa640; --accent:#58c4ff;
+  --display:"Barlow Condensed",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+main{max-width:720px;margin:0 auto;padding-block:20px 40px}
+h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02em;margin:0 0 14px;text-transform:uppercase}
+.err{color:var(--under);margin:0 0 12px}
+.resumen{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.kpi{font-family:var(--display);font-weight:800;font-size:34px;line-height:1}
+.kpi small{display:block;font-family:var(--body);font-size:12px;color:var(--muted);font-weight:400;margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+.sec{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin:18px 0 8px}
+.pos{color:var(--over)} .neg{color:var(--under)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.fecha{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.chip{font-family:var(--display);font-weight:800;font-size:15px;padding:4px 10px;border-radius:6px;color:#0a0d12;white-space:nowrap}
+.chip.over{background:var(--over)} .chip.under{background:var(--under)}
+.chip.live{background:var(--live)} .chip.next{background:#2a3a4a;color:var(--fg)} .chip.push{background:#ffb300}
+.fila{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0}
+.equipo{font-weight:600;font-size:16px}
+.mitad{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
+.pts{font-family:var(--display);font-weight:800;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);margin:8px 0}
+.lineas{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.lbl{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.linea{font-family:var(--display);font-weight:800;font-size:28px;color:var(--accent);line-height:1}
+.der{text-align:right}
+.sim{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.simrow{display:flex;gap:8px}
+.simrow input{flex:1;min-width:0;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:inherit;font-size:16px}
+.simrow button{background:var(--accent);color:#06121a;border:0;border-radius:8px;padding:0 16px;font-family:var(--display);font-weight:800;font-size:16px;cursor:pointer}
+.simrow button:disabled{background:#2a3a4a;color:var(--muted);cursor:not-allowed}
+.simres{font-family:var(--mono);font-size:12px;margin:8px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Partidos NBA</h1>
+  <p id="err" class="err" hidden></p>
+  <section class="resumen" id="resumen"></section>
+  <div id="lista"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://cdn.jsdelivr.net/npm/firebase@10.12.2/app/+esm";
+import { getFirestore, collection, query, orderBy, onSnapshot, doc, setDoc } from "https://cdn.jsdelivr.net/npm/firebase@10.12.2/firestore/+esm";
+
+// PEGA AQUÍ tu configuración web de Firebase (Configuración del proyecto → Tus apps → SDK)
+const firebaseConfig = {
+  apiKey: "PEGA_AQUI",
+  authDomain: "registro-nba.firebaseapp.com",
+  projectId: "registro-nba",
+  storageBucket: "registro-nba.appspot.com",
+  messagingSenderId: "PEGA_AQUI",
+  appId: "PEGA_AQUI"
+};
+
+const UMBRAL = 5, ODD = 1.91;
+const EN_JUEGO = ["Q1","Q2","Q3","Q4","OT","HT","BT"];
+const db = getFirestore(initializeApp(firebaseConfig));
+let juegos = [], apuestas = [], apuestaPorId = {};
+const borrador = {};
+
+const $ = id => document.getElementById(id);
+const showError = msg => { $("err").textContent = msg; $("err").hidden = !msg; };
+const fmtFecha = iso => new Intl.DateTimeFormat("es-DO", {
+  timeZone: "America/Santo_Domingo", weekday: "short", day: "2-digit", month: "2-digit",
+  hour: "2-digit", minute: "2-digit", hour12: false
+}).format(new Date(iso));
+
+const enCurso = j => j.pts_final == null && EN_JUEGO.includes(j.estado);
+const senal = (ritmo, linea) => ritmo >= linea + UMBRAL ? "OVER" : ritmo <= linea - UMBRAL ? "UNDER" : null;
+
+// unidades ganadas (+) o perdidas (-); null si el juego no ha terminado
+function resultado(a, j) {
+  const total = j?.pts_final;
+  if (total == null) return null;
+  if (total === a.linea_casa) return 0;
+  const fueOver = total > a.linea_casa;
+  return (a.lado === "OVER") === fueOver ? ODD - 1 : -1;
+}
+
+function etiqueta(j) {
+  if (enCurso(j)) return { texto: `EN CURSO · ${j.pts_actual ?? 0}`, clase: "live" };
+  if (j.pts_final == null) return { texto: "PRÓXIMO", clase: "next" };
+  const t = j.pts_final, l = j.linea_mediana;
+  if (l == null) return { texto: `FINAL ${t}`, clase: "next" };
+  if (t > l) return { texto: `OVER · ${t}`, clase: "over" };
+  if (t < l) return { texto: `UNDER · ${t}`, clase: "under" };
+  return { texto: `PUSH · ${t}`, clase: "push" };
+}
+
+function render() {
+  const porId = Object.fromEntries(juegos.map(j => [j.id, j]));
+  apuestaPorId = Object.fromEntries(apuestas.map(a => [a.id, a]));
+
+  const conRes = juegos.filter(j => j.pts_final != null && j.linea_mediana != null);
+  const over = conRes.filter(j => j.pts_final > j.linea_mediana).length;
+  const under = conRes.filter(j => j.pts_final < j.linea_mediana).length;
+  const pct = (over * 100 / Math.max(over + under, 1)).toFixed(1);
+
+  const res = apuestas.map(a => resultado(a, porId[a.id])).filter(r => r !== null);
+  const aciertos = res.filter(r => r > 0).length;
+  const unidades = res.reduce((s, r) => s + r, 0);
+  const roi = res.length ? unidades * 100 / res.length : 0;
+
+  $("resumen").innerHTML = `
+    <div class="grid">
+      <div class="kpi">${juegos.length}<small>registrados</small></div>
+      <div class="kpi">${conRes.length}<small>con resultado</small></div>
+      <div class="kpi"><span class="pos">${over}</span> / <span class="neg">${under}</span><small>over / under</small></div>
+      <div class="kpi">${pct}%<small>over sobre la línea</small></div>
+    </div>
+    <div class="sec">Simulador (sin dinero real)</div>
+    <div class="grid">
+      <div class="kpi">${apuestas.length}<small>apuestas · ${res.length} con resultado</small></div>
+      <div class="kpi">${aciertos}<small>aciertos</small></div>
+      <div class="kpi ${unidades >= 0 ? "pos" : "neg"}">${unidades.toFixed(2)}<small>unidades</small></div>
+      <div class="kpi ${roi >= 0 ? "pos" : "neg"}">${roi.toFixed(1)}%<small>ROI</small></div>
+    </div>`;
+
+  $("lista").innerHTML = juegos.map(tarjeta).join("");
+}
+
+const fila = (nombre, mitad, pts) => `
+  <div class="fila">
+    <div><div class="equipo">${nombre}</div><div class="mitad">1ª mitad: ${mitad ?? "-"}</div></div>
+    <div class="pts">${pts ?? "-"}</div>
+  </div>`;
+
+function tarjeta(j) {
+  const ml = j.mitad_local, mv = j.mitad_visita;
+  const ritmo = ml != null && mv != null ? (ml + mv) * 2 : null;
+  const e = etiqueta(j);
+  return `
+  <article class="card">
+    <div class="top"><span class="fecha">${fmtFecha(j.fecha_utc)}</span><span class="chip ${e.clase}">${e.texto}</span></div>
+    ${fila(j.equipo_visita, mv, j.pts_visita)}
+    ${fila(j.equipo_local, ml, j.pts_local)}
+    ${ritmo != null ? `<p class="meta">Total 1ª mitad: ${ml + mv} · ritmo ×2: ${ritmo}</p>` : ""}
+    <div class="lineas">
+      <div><span class="lbl">Línea</span><span class="linea">${j.linea_mediana ?? "-"}</span></div>
+      <div class="der"><span class="lbl">Pinnacle</span><span>${j.linea_pinnacle ?? "-"}</span>
+        <div class="meta">O ${j.over_pinnacle ?? "-"} · U ${j.under_pinnacle ?? "-"}</div></div>
+    </div>
+    ${seccionSim(j, ritmo)}
+  </article>`;
+}
+
+function seccionSim(j, ritmo) {
+  const a = apuestaPorId[j.id];
+  if (a) {
+    const r = resultado(a, j);
+    const txt = r == null ? `Simulada: ${a.lado} ${a.linea_casa} · ritmo ${a.ritmo}`
+      : r > 0 ? `Simulada: ${a.lado} ${a.linea_casa} · GANA +${r.toFixed(2)} u`
+      : r < 0 ? `Simulada: ${a.lado} ${a.linea_casa} · PIERDE ${r.toFixed(2)} u`
+      : `Simulada: ${a.lado} ${a.linea_casa} · PUSH 0 u`;
+    const color = r == null ? "var(--muted)" : r > 0 ? "var(--over)" : r < 0 ? "var(--under)" : "#ffb300";
+    return `<div class="sim"><p class="simres" style="color:${color}">${txt}</p></div>`;
+  }
+  if (ritmo == null || j.pts_final != null) return "";
+  return `
+  <div class="sim" data-id="${j.id}" data-ritmo="${ritmo}">
+    <div class="simrow">
+      <input inputmode="decimal" placeholder="Línea de la casa" value="${borrador[j.id] ?? ""}" data-linea="${j.id}">
+      <button data-reg="${j.id}" disabled>Registrar</button>
+    </div>
+    <p class="meta" data-msg>Escribe la línea de la casa</p>
+  </div>`;
+}
+
+function actualizarSenal(simDiv) {
+  const ritmo = Number(simDiv.dataset.ritmo);
+  const id = simDiv.dataset.id;
+  const linea = parseFloat((borrador[id] ?? "").replace(",", "."));
+  const lado = isNaN(linea) ? null : senal(ritmo, linea);
+  simDiv.querySelector("[data-reg]").disabled = !lado;
+  simDiv.querySelector("[data-msg]").textContent =
+    isNaN(linea) ? "Escribe la línea de la casa"
+    : lado ? `Señal: ${lado}`
+    : `Sin señal: a menos de ${UMBRAL} puntos de la línea`;
+}
+
+const lista = $("lista");
+lista.addEventListener("input", e => {
+  const inp = e.target.closest("[data-linea]");
+  if (!inp) return;
+  borrador[inp.dataset.linea] = inp.value;
+  actualizarSenal(inp.closest(".sim"));
+});
+
+lista.addEventListener("click", async e => {
+  const btn = e.target.closest("[data-reg]");
+  if (!btn) return;
+  const id = btn.dataset.reg;
+  const ritmo = Number(btn.closest(".sim").dataset.ritmo);
+  const linea = parseFloat((borrador[id] ?? "").replace(",", "."));
+  const lado = isNaN(linea) ? null : senal(ritmo, linea);
+  if (!lado) return;
+  try {
+    await setDoc(doc(db, "simulador", id), { lado, linea_casa: linea, ritmo, odd: ODD, creado_utc: Date.now() });
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
+onSnapshot(query(collection(db, "juegos"), orderBy("fecha_utc")),
+  snap => { juegos = snap.docs.map(d => ({ ...d.data(), id: d.id })); render(); },
+  err => showError(err.message));
+
+onSnapshot(collection(db, "simulador"),
+  snap => { apuestas = snap.docs.map(d => ({ ...d.data(), id: d.id })); render(); },
+  err => showError(err.message));
+</script>
+</body>
+</html>
