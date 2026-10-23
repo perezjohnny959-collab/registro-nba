@@ -94,6 +94,10 @@ def marcador(g):
         "mitad_visita": mv,
         "pts_Q1": None if ml is None or mv is None else ml + mv,
         "pts_Q2": None,
+        # datos sin procesar del reloj, para calcular el ritmo en vivo
+        "reloj_raw": g["status"].get("timer"),
+        "cuarto_raw": g["status"].get("short"),
+        "status_raw": str(g["status"]),
     }
 
 
