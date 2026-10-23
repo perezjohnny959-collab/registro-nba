@@ -101,6 +101,30 @@ def marcador(g):
     }
 
 
+def minutos_jugados(cuarto, reloj):
+    """Minutos transcurridos del partido, según el cuarto y el reloj restante (MM:SS)."""
+    if cuarto in ("HT", "BT"):
+        return 24.0
+    cuartos = {"Q1": 1, "Q2": 2, "Q3": 3, "Q4": 4}
+    if cuarto not in cuartos or not reloj:
+        return None
+    try:
+        m, s = str(reloj).split(":")
+        restante = int(m) + int(s) / 60
+    except (ValueError, AttributeError):
+        return None
+    if not 0 <= restante <= 12:
+        return None
+    return (cuartos[cuarto] - 1) * 12 + (12 - restante)
+
+
+def ritmo_en_vivo(g, total):
+    minutos = minutos_jugados(g["status"].get("short"), g["status"].get("timer"))
+    if minutos is None or minutos < 3:
+        return None, None
+    return minutos, round(total / minutos * 48, 1)
+
+
 def registrar(dias_adelante=1):
     filas = []
     hoy = ahora_utc().date()
@@ -157,6 +181,10 @@ def actualizar_en_vivo():
             if estado != "FT" and estado not in EN_JUEGO:
                 continue
             datos = {"estado": estado, "actualizado_utc": ahora, **marcador(g)}
+            minutos, ritmo = ritmo_en_vivo(g, datos["pts_actual"])
+            if ritmo is not None:
+                datos["minutos_jugados"] = minutos
+                datos["ritmo_vivo"] = ritmo
             if estado == "FT":
                 datos["pts_final"] = datos["pts_actual"]
             db.collection(COLECCION).document(str(g["id"])).set(datos, merge=True)
