@@ -76,19 +76,25 @@ def cuotas_juego(game_id):
     }
 
 
-def puntos_por_cuarto(g):
+def marcador(g):
     h, a = g["scores"]["home"], g["scores"]["away"]
 
-    def suma(q):
-        if h.get(q) is None or a.get(q) is None:
-            return None
-        return int(h[q]) + int(a[q])
+    def mitad(lado):
+        q1, q2 = lado.get("quarter_1"), lado.get("quarter_2")
+        return None if q1 is None or q2 is None else int(q1) + int(q2)
 
-    return suma("quarter_1"), suma("quarter_2")
-
-
-def total_actual(g):
-    return int(g["scores"]["home"]["total"] or 0) + int(g["scores"]["away"]["total"] or 0)
+    pl = int(h["total"] or 0)
+    pv = int(a["total"] or 0)
+    ml, mv = mitad(h), mitad(a)
+    return {
+        "pts_local": pl,
+        "pts_visita": pv,
+        "pts_actual": pl + pv,
+        "mitad_local": ml,
+        "mitad_visita": mv,
+        "pts_Q1": None if ml is None or mv is None else ml + mv,
+        "pts_Q2": None,
+    }
 
 
 def registrar(dias_adelante=1):
@@ -146,16 +152,9 @@ def actualizar_en_vivo():
             estado = g["status"]["short"]
             if estado != "FT" and estado not in EN_JUEGO:
                 continue
-            q1, q2 = puntos_por_cuarto(g)
-            datos = {
-                "estado": estado,
-                "pts_Q1": q1,
-                "pts_Q2": q2,
-                "pts_actual": total_actual(g),
-                "actualizado_utc": ahora,
-            }
+            datos = {"estado": estado, "actualizado_utc": ahora, **marcador(g)}
             if estado == "FT":
-                datos["pts_final"] = total_actual(g)
+                datos["pts_final"] = datos["pts_actual"]
             db.collection(COLECCION).document(str(g["id"])).set(datos, merge=True)
             actualizados += 1
         time.sleep(0.5)
@@ -173,18 +172,13 @@ def actualizar_resultados():
     for f in fechas:
         for g in juegos_del_dia(f):
             if g["status"]["short"] == "FT":
-                total = total_actual(g)
-                q1, q2 = puntos_por_cuarto(g)
-                df.loc[df["id"] == g["id"], "pts_final"] = total
-                df.loc[df["id"] == g["id"], "pts_Q1"] = q1
-                df.loc[df["id"] == g["id"], "pts_Q2"] = q2
-                db.collection(COLECCION).document(str(g["id"])).set({
-                    "pts_final": total,
-                    "pts_actual": total,
-                    "pts_Q1": q1,
-                    "pts_Q2": q2,
-                    "estado": "FT",
-                }, merge=True)
+                m = marcador(g)
+                total = m["pts_actual"]
+                mask = df["id"] == g["id"]
+                df.loc[mask, "pts_final"] = total
+                df.loc[mask, "pts_Q1"] = m["pts_Q1"]
+                db.collection(COLECCION).document(str(g["id"])).set(
+                    {**m, "pts_final": total, "estado": "FT"}, merge=True)
                 actualizados += 1
         time.sleep(0.5)
     df.to_csv(REG, index=False)
