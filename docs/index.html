@@ -66,6 +66,7 @@ h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02e
 .cuartos thead th{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:400}
 .cuartos .suma{color:var(--accent);font-family:var(--display);font-weight:800;font-size:20px}
 .total{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.editar{margin-top:8px;background:none;border:1px solid var(--line);color:var(--accent);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
 .total .big{font-family:var(--display);font-weight:800;font-size:40px;color:var(--accent);line-height:1}
 </style>
 </head>
@@ -79,7 +80,7 @@ h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02e
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, query, orderBy, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB3cgkva87mriUf0omO-JYD3rhxULi5Sdw",
@@ -253,7 +254,8 @@ function seccionSim(j, ritmo) {
       : r < 0 ? `Tu elección: ${a.lado} ${a.linea_casa} · FALLÓ ${r.toFixed(2)} u`
       : `Tu elección: ${a.lado} ${a.linea_casa} · PUSH 0 u`;
     const color = r == null ? "var(--muted)" : r > 0 ? "var(--over)" : r < 0 ? "var(--under)" : "#ffb300";
-    return `<div class="sim"><p class="simres" style="color:${color}">${txt}</p></div>`;
+    const editar = r == null ? `<button class="editar" data-editar="${j.id}">Editar elección</button>` : "";
+    return `<div class="sim"><p class="simres" style="color:${color}">${txt}</p>${editar}</div>`;
   }
   if (j.pts_final != null) return "";
   const r = ritmo ?? 0;
@@ -294,6 +296,18 @@ lista.addEventListener("click", async e => {
     seleccionado = null;
     render();
     window.scrollTo(0, 0);
+    return;
+  }
+  const editar = e.target.closest("[data-editar]");
+  if (editar) {
+    const id = editar.dataset.editar;
+    const previa = apuestaPorId[id];
+    if (previa) borrador[id] = String(previa.linea_casa);
+    try {
+      await deleteDoc(doc(db, "simulador", id));
+    } catch (err) {
+      showError(err.message);
+    }
     return;
   }
   const btn = e.target.closest("[data-reg]");
