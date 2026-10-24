@@ -243,6 +243,7 @@ function tarjeta(j) {
     ${fila(j.equipo_visita, mv, j.pts_visita)}
     ${fila(j.equipo_local, ml, j.pts_local)}
     ${ritmo != null ? `<p class="meta">Total 1ª mitad: ${ml + mv} · ritmo ×2: ${ritmo}</p>` : ""}
+    ${enCurso(j) && j.ritmo_vivo != null ? `<p class="meta">Ritmo en vivo: ${j.ritmo_vivo}</p>` : ""}
     <div class="lineas">
       <div><span class="lbl">Línea</span><span class="linea">${j.linea_mediana ?? "-"}</span></div>
       <div class="der"><span class="lbl">Pinnacle</span><span>${j.linea_pinnacle ?? "-"}</span>
@@ -279,6 +280,7 @@ function detalle(j) {
         ${filaCuartos(j.equipo_local, ql, sl)}
       </tbody>
     </table>
+    ${enCurso(j) && j.ritmo_vivo != null ? `<p class="meta">Ritmo en vivo: ${j.ritmo_vivo}</p>` : ""}
     <div class="total">
       <span class="lbl">Total combinado</span>
       <span class="big">${comb}</span>
