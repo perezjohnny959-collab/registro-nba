@@ -66,6 +66,7 @@ h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02e
 .cuartos thead th{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:400}
 .cuartos .suma{color:var(--accent);font-family:var(--display);font-weight:800;font-size:20px}
 .total{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.exportar{margin-top:14px;background:var(--accent);border:0;color:#06121a;border-radius:8px;padding:10px 14px;font-family:var(--display);font-weight:800;font-size:15px;cursor:pointer}
 .editar{margin-top:8px;background:none;border:1px solid var(--line);color:var(--accent);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
 .total .big{font-family:var(--display);font-weight:800;font-size:40px;color:var(--accent);line-height:1}
 </style>
@@ -146,6 +147,35 @@ function estadisticas(filtro, porId) {
   return `${sub.length} · ${(ac * 100 / sub.length).toFixed(0)} % · ROI ${(u * 100 / sub.length).toFixed(1)} %`;
 }
 
+function exportarCSV() {
+  const porId = Object.fromEntries(juegos.map(j => [j.id, j]));
+  const filas = [["fecha_utc", "partido", "lado", "linea_casa", "ritmo", "brecha", "odd", "linea_mediana", "pts_final", "resultado_u"]];
+  apuestas.forEach(a => {
+    const j = porId[a.id] ?? {};
+    const r = resultado(a, j);
+    filas.push([
+      j.fecha_utc ?? "",
+      `${j.equipo_visita ?? ""} @ ${j.equipo_local ?? ""}`,
+      a.lado,
+      a.linea_casa,
+      a.ritmo,
+      brecha(a).toFixed(1),
+      a.odd ?? ODD,
+      j.linea_mediana ?? "",
+      j.pts_final ?? "",
+      r == null ? "" : r.toFixed(2)
+    ]);
+  });
+  const csv = filas.map(f => f.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = "simulador_nba.csv";
+  enlace.click();
+  URL.revokeObjectURL(url);
+}
+
 function render() {
   apuestaPorId = Object.fromEntries(apuestas.map(a => [a.id, a]));
 
@@ -191,7 +221,8 @@ function render() {
     <div class="meta">Diferencia ritmo − línea</div>
     <div class="meta">5 a 7: ${estadisticas(a => brecha(a) < 7, porId)}</div>
     <div class="meta">7 a 10: ${estadisticas(a => brecha(a) >= 7 && brecha(a) < 10, porId)}</div>
-    <div class="meta">10 o más: ${estadisticas(a => brecha(a) >= 10, porId)}</div>`;
+    <div class="meta">10 o más: ${estadisticas(a => brecha(a) >= 10, porId)}</div>
+    <button class="exportar" data-exportar>Exportar simulador (CSV)</button>`;
 
   $("lista").innerHTML = [...juegos].sort(ordenar).map(tarjeta).join("");
 }
@@ -302,6 +333,9 @@ function actualizarSenal(simDiv) {
 }
 
 const lista = $("lista");
+$("resumen").addEventListener("click", e => {
+  if (e.target.closest("[data-exportar]")) exportarCSV();
+});
 lista.addEventListener("input", e => {
   const inp = e.target.closest("[data-linea]");
   if (!inp) return;
