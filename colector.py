@@ -83,9 +83,14 @@ def marcador(g):
         q1, q2 = lado.get("quarter_1"), lado.get("quarter_2")
         return None if q1 is None or q2 is None else int(q1) + int(q2)
 
+    def cuartos(lado):
+        return {f"q{i}": (None if lado.get(f"quarter_{i}") is None else int(lado[f"quarter_{i}"]))
+                for i in range(1, 5)}
+
     pl = int(h["total"] or 0)
     pv = int(a["total"] or 0)
     ml, mv = mitad(h), mitad(a)
+    ql, qv = cuartos(h), cuartos(a)
     return {
         "pts_local": pl,
         "pts_visita": pv,
@@ -94,6 +99,9 @@ def marcador(g):
         "mitad_visita": mv,
         "pts_Q1": None if ml is None or mv is None else ml + mv,
         "pts_Q2": None,
+        # puntos por cuarto de cada equipo
+        **{f"{k}_local": v for k, v in ql.items()},
+        **{f"{k}_visita": v for k, v in qv.items()},
         # datos sin procesar del reloj, para calcular el ritmo en vivo
         "reloj_raw": g["status"].get("timer"),
         "cuarto_raw": g["status"].get("short"),
