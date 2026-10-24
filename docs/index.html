@@ -34,6 +34,7 @@ h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02e
 .sec{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin:18px 0 8px}
 .pos{color:var(--over)} .neg{color:var(--under)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.card[data-open]{cursor:pointer}
 .card.live{border-color:var(--live)}
 .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
 .fecha{font-family:var(--mono);font-size:12px;color:var(--muted)}
@@ -57,6 +58,15 @@ h1{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.02e
 .simrow button[data-reg="UNDER"]{background:var(--under)}
 .simrow button:disabled{background:#2a3a4a;color:var(--muted);cursor:not-allowed}
 .simres{font-family:var(--mono);font-size:12px;margin:8px 0 0}
+.volver{background:none;border:1px solid var(--line);color:var(--accent);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer;margin-bottom:12px}
+.titulo{font-family:var(--display);font-weight:800;font-size:28px;margin:4px 0 14px;text-transform:uppercase;line-height:1.1}
+.cuartos{width:100%;border-collapse:collapse;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.cuartos th,.cuartos td{padding:8px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.cuartos th:first-child,.cuartos td:first-child{text-align:left;font-family:var(--body);font-weight:600}
+.cuartos thead th{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:400}
+.cuartos .suma{color:var(--accent);font-family:var(--display);font-weight:800;font-size:20px}
+.total{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.total .big{font-family:var(--display);font-weight:800;font-size:40px;color:var(--accent);line-height:1}
 </style>
 </head>
 <body>
@@ -83,7 +93,7 @@ const firebaseConfig = {
 const UMBRAL = 5, ODD = 1.91;
 const EN_JUEGO = ["Q1","Q2","Q3","Q4","OT","HT","BT"];
 const db = getFirestore(initializeApp(firebaseConfig));
-let juegos = [], apuestas = [], apuestaPorId = {};
+let juegos = [], apuestas = [], apuestaPorId = {}, seleccionado = null;
 const borrador = {};
 
 const $ = id => document.getElementById(id);
@@ -126,8 +136,17 @@ function etiqueta(j) {
 }
 
 function render() {
-  const porId = Object.fromEntries(juegos.map(j => [j.id, j]));
   apuestaPorId = Object.fromEntries(apuestas.map(a => [a.id, a]));
+
+  // Pantalla de detalle de un partido
+  const abierto = juegos.find(j => j.id === seleccionado);
+  $("resumen").hidden = !!abierto;
+  if (abierto) {
+    $("lista").innerHTML = detalle(abierto);
+    return;
+  }
+
+  const porId = Object.fromEntries(juegos.map(j => [j.id, j]));
 
   const conRes = juegos.filter(j => j.pts_final != null && j.linea_mediana != null);
   const over = conRes.filter(j => j.pts_final > j.linea_mediana).length;
@@ -169,11 +188,53 @@ function tarjeta(j) {
   const ritmo = ml != null && mv != null ? (ml + mv) * 2 : null;
   const e = etiqueta(j);
   return `
-  <article class="card${enCurso(j) ? " live" : ""}">
+  <article class="card${enCurso(j) ? " live" : ""}" data-open="${j.id}">
     <div class="top"><span class="fecha">${fmtFecha(j.fecha_utc)}</span><span class="chip ${e.clase}">${e.texto}</span></div>
     ${fila(j.equipo_visita, mv, j.pts_visita)}
     ${fila(j.equipo_local, ml, j.pts_local)}
     ${ritmo != null ? `<p class="meta">Total 1ª mitad: ${ml + mv} · ritmo ×2: ${ritmo}</p>` : ""}
+    <div class="lineas">
+      <div><span class="lbl">Línea</span><span class="linea">${j.linea_mediana ?? "-"}</span></div>
+      <div class="der"><span class="lbl">Pinnacle</span><span>${j.linea_pinnacle ?? "-"}</span>
+        <div class="meta">O ${j.over_pinnacle ?? "-"} · U ${j.under_pinnacle ?? "-"}</div></div>
+    </div>
+    ${seccionSim(j, ritmo)}
+  </article>`;
+}
+
+// Suma de los cuartos disponibles; null si ninguno tiene datos todavía
+const sumaCuartos = v => v.every(x => x == null) ? null : v.filter(x => x != null).reduce((s, x) => s + x, 0);
+
+function detalle(j) {
+  const qv = [j.q1_visita, j.q2_visita, j.q3_visita, j.q4_visita];
+  const ql = [j.q1_local, j.q2_local, j.q3_local, j.q4_local];
+  const sv = sumaCuartos(qv), sl = sumaCuartos(ql);
+  const comb = sv == null && sl == null ? "-" : (sv ?? 0) + (sl ?? 0);
+  const ml = j.mitad_local, mv = j.mitad_visita;
+  const ritmo = ml != null && mv != null ? (ml + mv) * 2 : null;
+  const e = etiqueta(j);
+  const celda = v => v ?? "-";
+  const filaCuartos = (nombre, qs, s) =>
+    `<tr><th>${nombre}</th>${qs.map(q => `<td>${celda(q)}</td>`).join("")}<td class="suma">${celda(s)}</td></tr>`;
+
+  return `
+  <button class="volver" data-volver>← Volver a partidos</button>
+  <article class="card${enCurso(j) ? " live" : ""}">
+    <div class="top"><span class="fecha">${fmtFecha(j.fecha_utc)}</span><span class="chip ${e.clase}">${e.texto}</span></div>
+    <h2 class="titulo">${j.equipo_visita} @ ${j.equipo_local}</h2>
+    <table class="cuartos">
+      <thead><tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Suma</th></tr></thead>
+      <tbody>
+        ${filaCuartos(j.equipo_visita, qv, sv)}
+        ${filaCuartos(j.equipo_local, ql, sl)}
+      </tbody>
+    </table>
+    <div class="total">
+      <span class="lbl">Total combinado</span>
+      <span class="big">${comb}</span>
+    </div>
+  </article>
+  <article class="card">
     <div class="lineas">
       <div><span class="lbl">Línea</span><span class="linea">${j.linea_mediana ?? "-"}</span></div>
       <div class="der"><span class="lbl">Pinnacle</span><span>${j.linea_pinnacle ?? "-"}</span>
@@ -229,18 +290,34 @@ lista.addEventListener("input", e => {
 });
 
 lista.addEventListener("click", async e => {
+  if (e.target.closest("[data-volver]")) {
+    seleccionado = null;
+    render();
+    window.scrollTo(0, 0);
+    return;
+  }
   const btn = e.target.closest("[data-reg]");
-  if (!btn || btn.disabled) return;
-  const id = btn.closest(".sim").dataset.id;
-  const ritmo = Number(btn.closest(".sim").dataset.ritmo);
-  const linea = parseFloat((borrador[id] ?? "").replace(",", "."));
-  if (isNaN(linea)) return;
-  try {
-    await setDoc(doc(db, "simulador", id), {
-      lado: btn.dataset.reg, linea_casa: linea, ritmo, odd: ODD, creado_utc: Date.now()
-    });
-  } catch (err) {
-    showError(err.message);
+  if (btn) {
+    if (btn.disabled) return;
+    const id = btn.closest(".sim").dataset.id;
+    const ritmo = Number(btn.closest(".sim").dataset.ritmo);
+    const linea = parseFloat((borrador[id] ?? "").replace(",", "."));
+    if (isNaN(linea)) return;
+    try {
+      await setDoc(doc(db, "simulador", id), {
+        lado: btn.dataset.reg, linea_casa: linea, ritmo, odd: ODD, creado_utc: Date.now()
+      });
+    } catch (err) {
+      showError(err.message);
+    }
+    return;
+  }
+  if (e.target.closest("input")) return;
+  const card = e.target.closest("[data-open]");
+  if (card) {
+    seleccionado = card.dataset.open;
+    render();
+    window.scrollTo(0, 0);
   }
 });
 
