@@ -79,7 +79,12 @@ def cuotas_juego(game_id):
 def marcador(g):
     h, a = g["scores"]["home"], g["scores"]["away"]
 
+    # la primera mitad solo se guarda cuando ya terminó el segundo cuarto (medio tiempo o después)
+    mitad_lista = g["status"].get("short") in {"HT", "BT", "Q3", "Q4", "OT", "FT"}
+
     def mitad(lado):
+        if not mitad_lista:
+            return None
         q1, q2 = lado.get("quarter_1"), lado.get("quarter_2")
         return None if q1 is None or q2 is None else int(q1) + int(q2)
 
