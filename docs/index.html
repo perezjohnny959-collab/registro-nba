@@ -136,6 +136,16 @@ function etiqueta(j) {
   return { texto: `PUSH · ${t}`, clase: "push" };
 }
 
+const brecha = a => Math.abs(a.ritmo - a.linea_casa);
+
+function estadisticas(filtro, porId) {
+  const sub = apuestas.filter(filtro).map(a => resultado(a, porId[a.id])).filter(r => r !== null);
+  if (!sub.length) return "0 · -";
+  const ac = sub.filter(r => r > 0).length;
+  const u = sub.reduce((s, r) => s + r, 0);
+  return `${sub.length} · ${(ac * 100 / sub.length).toFixed(0)} % · ROI ${(u * 100 / sub.length).toFixed(1)} %`;
+}
+
 function render() {
   apuestaPorId = Object.fromEntries(apuestas.map(a => [a.id, a]));
 
@@ -173,7 +183,15 @@ function render() {
       <div class="kpi">${pctAciertos}%<small>aciertos · ${aciertos} de ${res.length}</small></div>
       <div class="kpi ${unidades >= 0 ? "pos" : "neg"}">${unidades.toFixed(2)}<small>unidades</small></div>
       <div class="kpi ${roi >= 0 ? "pos" : "neg"}">${roi.toFixed(1)}%<small>ROI</small></div>
-    </div>`;
+    </div>
+    <div class="sec">Desglose</div>
+    <div class="meta">Por lado (n · acierto · ROI)</div>
+    <div class="meta">OVER: ${estadisticas(a => a.lado === "OVER", porId)}</div>
+    <div class="meta">UNDER: ${estadisticas(a => a.lado === "UNDER", porId)}</div>
+    <div class="meta">Diferencia ritmo − línea</div>
+    <div class="meta">5 a 7: ${estadisticas(a => brecha(a) < 7, porId)}</div>
+    <div class="meta">7 a 10: ${estadisticas(a => brecha(a) >= 7 && brecha(a) < 10, porId)}</div>
+    <div class="meta">10 o más: ${estadisticas(a => brecha(a) >= 10, porId)}</div>`;
 
   $("lista").innerHTML = [...juegos].sort(ordenar).map(tarjeta).join("");
 }
