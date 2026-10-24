@@ -140,6 +140,23 @@ def ritmo_en_vivo(g, total):
     return minutos, round(total / minutos * 48, 1)
 
 
+def registrar_medio_tiempo(datos, previo):
+    """Guarda la señal de la regla al medio tiempo para todos los partidos, con la línea mediana."""
+    ml, mv = datos.get("mitad_local"), datos.get("mitad_visita")
+    linea = previo.get("linea_mediana")
+    if ml is None or mv is None or linea is None:
+        return
+    ritmo = (ml + mv) * 2
+    if ritmo >= linea + UMBRAL:
+        senal = "OVER"
+    elif ritmo <= linea - UMBRAL:
+        senal = "UNDER"
+    else:
+        senal = "NINGUNA"
+    datos["ritmo_ht"] = ritmo
+    datos["senal_ht"] = senal
+
+
 def notificar_senal_medio_tiempo(g, datos, previo):
     """Envía una notificación si al medio tiempo el ritmo está a 5+ puntos de la línea mediana."""
     if previo.get("notificado_ht"):
@@ -233,7 +250,10 @@ def actualizar_en_vivo():
                 datos["pts_final"] = datos["pts_actual"]
             ref = db.collection(COLECCION).document(str(g["id"]))
             if estado in {"HT", "BT"}:
-                notificar_senal_medio_tiempo(g, datos, ref.get().to_dict() or {})
+                previo = ref.get().to_dict() or {}
+                if "senal_ht" not in previo:
+                    registrar_medio_tiempo(datos, previo)
+                notificar_senal_medio_tiempo(g, datos, previo)
             ref.set(datos, merge=True)
             actualizados += 1
         time.sleep(0.5)
