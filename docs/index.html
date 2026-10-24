@@ -200,6 +200,14 @@ function render() {
   const roi = res.length ? unidades * 100 / res.length : 0;
   const pctAciertos = res.length ? (aciertos * 100 / res.length).toFixed(1) : "0.0";
 
+  const decididos = juegos.filter(j => j.senal_ht && j.pts_final != null && j.linea_mediana != null && j.pts_final !== j.linea_mediana);
+  const conSenal = decididos.filter(j => j.senal_ht === "OVER" || j.senal_ht === "UNDER");
+  const sinSenal = decididos.filter(j => j.senal_ht === "NINGUNA");
+  const aciertosRegla = conSenal.filter(j => (j.senal_ht === "OVER") === (j.pts_final > j.linea_mediana)).length;
+  const overSin = sinSenal.filter(j => j.pts_final > j.linea_mediana).length;
+  const pctR = conSenal.length ? (aciertosRegla * 100 / conSenal.length).toFixed(0) : "-";
+  const pctS = sinSenal.length ? (overSin * 100 / sinSenal.length).toFixed(0) : "-";
+
   $("resumen").innerHTML = `
     <div class="grid">
       <div class="kpi">${juegos.length}<small>registrados</small></div>
@@ -222,6 +230,9 @@ function render() {
     <div class="meta">5 a 7: ${estadisticas(a => brecha(a) < 7, porId)}</div>
     <div class="meta">7 a 10: ${estadisticas(a => brecha(a) >= 7 && brecha(a) < 10, porId)}</div>
     <div class="meta">10 o más: ${estadisticas(a => brecha(a) >= 10, porId)}</div>
+    <div class="sec">Regla (todos los partidos, sin depender de tu elección)</div>
+    <div class="meta">Con señal: ${conSenal.length} · acierto ${pctR}%</div>
+    <div class="meta">Sin señal: ${sinSenal.length} · over ${pctS}%</div>
     <button class="exportar" data-exportar>Exportar simulador (CSV)</button>`;
 
   $("lista").innerHTML = [...juegos].sort(ordenar).map(tarjeta).join("");
