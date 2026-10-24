@@ -309,25 +309,27 @@ function seccionSim(j, ritmo) {
   if (j.pts_final != null) return "";
   const r = ritmo ?? 0;
   return `
-  <div class="sim" data-id="${j.id}" data-ritmo="${r}">
+  <div class="sim" data-id="${j.id}" data-ritmo="${r}" data-hay="${ritmo != null}">
     <div class="simrow">
       <input inputmode="decimal" placeholder="Línea de la casa" value="${borrador[j.id] ?? ""}" data-linea="${j.id}">
       <button data-reg="OVER" disabled>OVER</button>
       <button data-reg="UNDER" disabled>UNDER</button>
     </div>
-    <p class="meta" data-msg>Escribe la línea de la casa para elegir OVER o UNDER</p>
+    <p class="meta" data-msg>${ritmo != null ? "Escribe la línea de la casa para elegir OVER o UNDER" : "Esperando el medio tiempo para calcular el ritmo"}</p>
   </div>`;
 }
 
 function actualizarSenal(simDiv) {
-  const ritmo = Number(simDiv.dataset.ritmo);
   const id = simDiv.dataset.id;
+  const hayRitmo = simDiv.dataset.hay === "true";
+  const ritmo = Number(simDiv.dataset.ritmo);
   const linea = parseFloat((borrador[id] ?? "").replace(",", "."));
-  const valida = !isNaN(linea);
+  const valida = !isNaN(linea) && hayRitmo;
   simDiv.querySelectorAll("[data-reg]").forEach(b => b.disabled = !valida);
   const lado = valida ? senal(ritmo, linea) : null;
   simDiv.querySelector("[data-msg]").textContent =
-    !valida ? "Escribe la línea de la casa para elegir OVER o UNDER"
+    !hayRitmo ? "Esperando el medio tiempo para calcular el ritmo"
+    : isNaN(linea) ? "Escribe la línea de la casa para elegir OVER o UNDER"
     : lado ? `Señal de la regla: ${lado}`
     : `Señal de la regla: ninguna (ritmo a menos de ${UMBRAL} puntos de la línea)`;
 }
