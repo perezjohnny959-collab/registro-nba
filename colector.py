@@ -7,7 +7,7 @@ import datetime as dt
 import pandas as pd
 import requests
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, messaging
 
 API_KEY = os.environ["API_KEY"]
 HEADERS = {"x-apisports-key": API_KEY}
@@ -16,6 +16,8 @@ REG = "registro_en_vivo.csv"
 SEASON = "2026-2027"
 COLECCION = "juegos"
 EN_JUEGO = {"Q1", "Q2", "Q3", "Q4", "OT", "HT", "BT"}
+UMBRAL = 5.0
+TOPICO = "senales_nba"
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app(credentials.Certificate(json.loads(os.environ["FIREBASE_KEY"])))
@@ -138,6 +140,35 @@ def ritmo_en_vivo(g, total):
     return minutos, round(total / minutos * 48, 1)
 
 
+def notificar_senal_medio_tiempo(g, datos, previo):
+    """Envía una notificación si al medio tiempo el ritmo está a 5+ puntos de la línea mediana."""
+    if previo.get("notificado_ht"):
+        return
+    ml, mv = datos.get("mitad_local"), datos.get("mitad_visita")
+    linea = previo.get("linea_mediana")
+    if ml is None or mv is None or linea is None:
+        return
+    ritmo = (ml + mv) * 2
+    if abs(ritmo - linea) < UMBRAL:
+        return
+    lado = "OVER" if ritmo > linea else "UNDER"
+    try:
+        messaging.send(messaging.Message(
+            notification=messaging.Notification(
+                title=f"Señal al medio tiempo: {lado}",
+                body=f"{g['teams']['away']['name']} @ {g['teams']['home']['name']} · ritmo {ritmo} vs línea {linea}",
+            ),
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(channel_id="senales"),
+            ),
+            topic=TOPICO,
+        ))
+        datos["notificado_ht"] = True
+    except Exception as e:
+        print("No se pudo enviar la notificación:", e)
+
+
 def registrar(dias_adelante=1):
     filas = []
     hoy = ahora_utc().date()
@@ -200,7 +231,10 @@ def actualizar_en_vivo():
                 datos["ritmo_vivo"] = ritmo
             if estado == "FT":
                 datos["pts_final"] = datos["pts_actual"]
-            db.collection(COLECCION).document(str(g["id"])).set(datos, merge=True)
+            ref = db.collection(COLECCION).document(str(g["id"]))
+            if estado in {"HT", "BT"}:
+                notificar_senal_medio_tiempo(g, datos, ref.get().to_dict() or {})
+            ref.set(datos, merge=True)
             actualizados += 1
         time.sleep(0.5)
     print("Partidos actualizados en vivo:", actualizados)
