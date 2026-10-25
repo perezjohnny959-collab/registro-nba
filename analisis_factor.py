@@ -32,14 +32,18 @@ for doc in db.collection("juegos").where("estado", "==", "FT").stream():
 
     mitad1 = sum(q[i][0] + q[i][1] for i in (1, 2))
     mitad2 = sum(q[i][0] + q[i][1] for i in (3, 4))
+    prom_1_3 = sum(q[i][0] + q[i][1] for i in (1, 2, 3)) / 3
+    if mitad1 == 0 or prom_1_3 == 0:
+        omitidos += 1  # registro incompleto o con ceros
+        continue
+
     margen_medio = abs(sum(q[i][0] for i in (1, 2)) - sum(q[i][1] for i in (1, 2)))
     grupo = "reñido" if margen_medio <= UMBRAL_RENIDO else "abierto"
-    prom_1_3 = sum(q[i][0] + q[i][1] for i in (1, 2, 3)) / 3
     cuarto4 = q[4][0] + q[4][1]
     grupos[grupo].append((mitad1, mitad2, cuarto4, prom_1_3))
 
 total = sum(len(v) for v in grupos.values())
-print(f"Partidos usados: {total} | omitidos (sin los 4 cuartos completos): {omitidos}")
+print(f"Partidos usados: {total} | omitidos: {omitidos}")
 print()
 
 for nombre, filas in grupos.items():
