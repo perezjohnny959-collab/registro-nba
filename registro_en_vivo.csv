@@ -21,3 +21,10 @@ id,fecha_utc,equipo_local,equipo_visita,capturado_utc,linea_mediana,n_casas,line
 519564,2026-10-25T00:30:00+00:00,Atlanta Hawks,Houston Rockets,2026-10-24T15:04+00:00,229.5,7,229.0,1.91,1.94,235.0,107.0
 519567,2026-10-25T02:00:00+00:00,Denver Nuggets,New Orleans Pelicans,2026-10-24T15:04+00:00,237.5,7,238.0,1.93,1.93,276.0,130.0
 519568,2026-10-25T02:00:00+00:00,Phoenix Suns,Golden State Warriors,2026-10-24T15:04+00:00,220.0,7,219.5,1.93,1.93,253.0,111.0
+519569,2026-10-25T21:00:00+00:00,Utah Jazz,Los Angeles Lakers,2026-10-25T15:16+00:00,237.5,9,237.5,1.93,1.95,,
+519570,2026-10-25T22:00:00+00:00,Brooklyn Nets,Indiana Pacers,2026-10-25T15:16+00:00,231.5,9,231.0,1.92,1.92,,
+519571,2026-10-25T23:00:00+00:00,Oklahoma City Thunder,Los Angeles Clippers,2026-10-25T15:16+00:00,224.5,9,224.5,1.93,1.94,,
+519572,2026-10-25T23:00:00+00:00,Minnesota Timberwolves,Toronto Raptors,2026-10-25T15:16+00:00,230.5,9,230.0,1.95,1.92,,
+519573,2026-10-25T23:00:00+00:00,New York Knicks,Orlando Magic,2026-10-25T15:16+00:00,224.0,9,224.5,1.94,1.94,,
+519574,2026-10-25T23:30:00+00:00,Philadelphia 76ers,Detroit Pistons,2026-10-25T15:16+00:00,227.5,9,228.0,1.94,1.93,,
+519575,2026-10-26T01:00:00+00:00,Sacramento Kings,Memphis Grizzlies,2026-10-25T15:16+00:00,236.5,9,236.5,1.91,1.94,,
