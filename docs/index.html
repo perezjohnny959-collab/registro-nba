@@ -93,6 +93,8 @@ const firebaseConfig = {
 };
 
 const UMBRAL = 5, ODD = 1.91;
+// regla v2: proyección = 1ª mitad × 2 × factor, según si el partido es reñido al medio tiempo
+const UMBRAL_RENIDO = 8, FACTOR_RENIDO = 0.973, FACTOR_ABIERTO = 0.992;
 const EN_JUEGO = ["Q1","Q2","Q3","Q4","OT","HT","BT"];
 const db = getFirestore(initializeApp(firebaseConfig));
 let juegos = [], apuestas = [], apuestaPorId = {}, seleccionado = null;
@@ -107,6 +109,14 @@ const fmtFecha = iso => new Intl.DateTimeFormat("es-DO", {
 
 const enCurso = j => j.pts_final == null && EN_JUEGO.includes(j.estado);
 const senal = (ritmo, linea) => ritmo >= linea + UMBRAL ? "OVER" : ritmo <= linea - UMBRAL ? "UNDER" : null;
+
+// proyección ajustada al final del partido; null si todavía no hay primera mitad
+const ritmoAjustado = j => {
+  const ml = j.mitad_local, mv = j.mitad_visita;
+  if (ml == null || mv == null) return null;
+  const factor = Math.abs(ml - mv) <= UMBRAL_RENIDO ? FACTOR_RENIDO : FACTOR_ABIERTO;
+  return Math.round((ml + mv) * 2 * factor * 10) / 10;
+};
 
 // 0 = en curso, 1 = próximo, 2 = terminado
 const grupo = j => enCurso(j) ? 0 : j.pts_final == null ? 1 : 2;
@@ -167,7 +177,7 @@ function exportarCSV() {
     ]);
   });
   const csv = filas.map(f => f.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");
   enlace.href = url;
@@ -246,14 +256,14 @@ const fila = (nombre, mitad, pts) => `
 
 function tarjeta(j) {
   const ml = j.mitad_local, mv = j.mitad_visita;
-  const ritmo = ml != null && mv != null ? (ml + mv) * 2 : null;
+  const ritmo = ritmoAjustado(j);
   const e = etiqueta(j);
   return `
   <article class="card${enCurso(j) ? " live" : ""}" data-open="${j.id}">
     <div class="top"><span class="fecha">${fmtFecha(j.fecha_utc)}</span><span class="chip ${e.clase}">${e.texto}</span></div>
     ${fila(j.equipo_visita, mv, j.pts_visita)}
     ${fila(j.equipo_local, ml, j.pts_local)}
-    ${ritmo != null ? `<p class="meta">Total 1ª mitad: ${ml + mv} · ritmo ×2: ${ritmo}</p>` : ""}
+    ${ritmo != null ? `<p class="meta">Total 1ª mitad: ${ml + mv} · proyección ajustada: ${ritmo}</p>` : ""}
     ${enCurso(j) && j.ritmo_vivo != null ? `<p class="meta">Ritmo en vivo: ${j.ritmo_vivo}</p>` : ""}
     <div class="lineas">
       <div><span class="lbl">Línea</span><span class="linea">${j.linea_mediana ?? "-"}</span></div>
@@ -272,8 +282,7 @@ function detalle(j) {
   const ql = [j.q1_local, j.q2_local, j.q3_local, j.q4_local];
   const sv = sumaCuartos(qv), sl = sumaCuartos(ql);
   const comb = sv == null && sl == null ? "-" : (sv ?? 0) + (sl ?? 0);
-  const ml = j.mitad_local, mv = j.mitad_visita;
-  const ritmo = ml != null && mv != null ? (ml + mv) * 2 : null;
+  const ritmo = ritmoAjustado(j);
   const e = etiqueta(j);
   const celda = v => v ?? "-";
   const filaCuartos = (nombre, qs, s) =>
@@ -291,6 +300,7 @@ function detalle(j) {
         ${filaCuartos(j.equipo_local, ql, sl)}
       </tbody>
     </table>
+    ${ritmo != null ? `<p class="meta">Proyección ajustada: ${ritmo}</p>` : ""}
     ${enCurso(j) && j.ritmo_vivo != null ? `<p class="meta">Ritmo en vivo: ${j.ritmo_vivo}</p>` : ""}
     <div class="total">
       <span class="lbl">Total combinado</span>
@@ -386,7 +396,7 @@ lista.addEventListener("click", async e => {
     if (isNaN(linea)) return;
     try {
       await setDoc(doc(db, "simulador", id), {
-        lado: btn.dataset.reg, linea_casa: linea, ritmo, odd: ODD, creado_utc: Date.now()
+        lado: btn.dataset.reg, linea_casa: linea, ritmo, odd: ODD, creado_utc: Date.now(), version_regla: "v2"
       });
     } catch (err) {
       showError(err.message);
