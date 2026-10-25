@@ -179,6 +179,7 @@ def notificar_senal_medio_tiempo(g, datos, previo):
                 priority="high",
                 notification=messaging.AndroidNotification(channel_id="senales"),
             ),
+            data={"juego_id": str(g["id"])},
             topic=TOPICO,
         ))
         datos["notificado_ht"] = True
