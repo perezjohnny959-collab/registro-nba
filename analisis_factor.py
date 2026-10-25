@@ -1,12 +1,12 @@
 # analisis_factor.py: calcula el factor de ajuste de la regla al medio tiempo con partidos terminados
-# Uso: FIREBASE_KEY_FILE=ruta/clave.json python analisis_factor.py
 import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 
 UMBRAL_RENIDO = 8  # diferencia al medio tiempo para considerar el partido reñido
 
-firebase_admin.initialize_app(credentials.Certificate(os.environ["FIREBASE_KEY_FILE"]))
+firebase_admin.initialize_app(credentials.Certificate(json.loads(os.environ["FIREBASE_KEY"])))
 db = firestore.client()
 
 
