@@ -16,7 +16,9 @@ REG = "registro_en_vivo.csv"
 SEASON = "2026-2027"
 COLECCION = "juegos"
 EN_JUEGO = {"Q1", "Q2", "Q3", "Q4", "OT", "HT", "BT"}
+CUARTOS_VIVO = {"Q1", "Q2", "Q3", "Q4", "OT"}
 UMBRAL = 5.0
+MIN_MINUTOS_VIVO = 12.0  # minutos jugados mínimos para avisar cambios de ritmo en vivo
 TOPICO = "senales_nba"
 
 # regla v2: proyección = 1ª mitad × 2 × factor, según si el partido es reñido al medio tiempo
@@ -156,20 +158,22 @@ def ritmo_ht_ajustado(datos):
     return (ml + mv) * 2 * factor, grupo
 
 
+def senal_en_vivo(ritmo, linea):
+    if ritmo >= linea + UMBRAL:
+        return "OVER"
+    if ritmo <= linea - UMBRAL:
+        return "UNDER"
+    return "NINGUNA"
+
+
 def registrar_medio_tiempo(datos, previo):
     """Guarda la señal de la regla v2 al medio tiempo, con la línea mediana."""
     ritmo, _ = ritmo_ht_ajustado(datos)
     linea = previo.get("linea_mediana")
     if ritmo is None or linea is None:
         return
-    if ritmo >= linea + UMBRAL:
-        senal = "OVER"
-    elif ritmo <= linea - UMBRAL:
-        senal = "UNDER"
-    else:
-        senal = "NINGUNA"
     datos["ritmo_ht"] = round(ritmo, 1)
-    datos["senal_ht"] = senal
+    datos["senal_ht"] = senal_en_vivo(ritmo, linea)
     datos["version_regla"] = VERSION_REGLA
 
 
@@ -200,6 +204,33 @@ def notificar_senal_medio_tiempo(g, datos, previo):
         datos["notificado_ht"] = True
     except Exception as e:
         print("No se pudo enviar la notificación:", e)
+
+
+def notificar_cambio_ritmo(g, datos, previo, minutos):
+    """Avisa una sola vez cuando el ritmo en vivo pasa de ninguna señal a OVER o UNDER."""
+    ritmo = datos.get("ritmo_vivo")
+    linea = previo.get("linea_mediana")
+    if ritmo is None or linea is None or minutos is None or minutos < MIN_MINUTOS_VIVO:
+        return
+    lado = senal_en_vivo(ritmo, linea)
+    datos["senal_vivo"] = lado
+    if lado == "NINGUNA" or lado == previo.get("senal_vivo"):
+        return
+    try:
+        messaging.send(messaging.Message(
+            notification=messaging.Notification(
+                title=f"Ritmo en vivo: {lado}",
+                body=f"{g['teams']['away']['name']} @ {g['teams']['home']['name']} · ritmo {ritmo} vs línea {linea} · min {round(minutos)}",
+            ),
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(channel_id="senales"),
+            ),
+            data={"juego_id": str(g["id"])},
+            topic=TOPICO,
+        ))
+    except Exception as e:
+        print("No se pudo enviar la notificación de ritmo:", e)
 
 
 def registrar(dias_adelante=1):
@@ -265,11 +296,13 @@ def actualizar_en_vivo():
             if estado == "FT":
                 datos["pts_final"] = datos["pts_actual"]
             ref = db.collection(COLECCION).document(str(g["id"]))
+            previo = ref.get().to_dict() or {}
             if estado in {"HT", "BT"}:
-                previo = ref.get().to_dict() or {}
                 if "senal_ht" not in previo:
                     registrar_medio_tiempo(datos, previo)
                 notificar_senal_medio_tiempo(g, datos, previo)
+            elif estado in CUARTOS_VIVO:
+                notificar_cambio_ritmo(g, datos, previo, minutos)
             ref.set(datos, merge=True)
             actualizados += 1
         time.sleep(0.5)
