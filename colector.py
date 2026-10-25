@@ -19,6 +19,12 @@ EN_JUEGO = {"Q1", "Q2", "Q3", "Q4", "OT", "HT", "BT"}
 UMBRAL = 5.0
 TOPICO = "senales_nba"
 
+# regla v2: proyección = 1ª mitad × 2 × factor, según si el partido es reñido al medio tiempo
+UMBRAL_RENIDO = 8
+FACTOR_RENIDO = 0.973
+FACTOR_ABIERTO = 0.992
+VERSION_REGLA = "v2"
+
 if not firebase_admin._apps:
     firebase_admin.initialize_app(credentials.Certificate(json.loads(os.environ["FIREBASE_KEY"])))
 db = firestore.client()
@@ -140,32 +146,41 @@ def ritmo_en_vivo(g, total):
     return minutos, round(total / minutos * 48, 1)
 
 
-def registrar_medio_tiempo(datos, previo):
-    """Guarda la señal de la regla al medio tiempo para todos los partidos, con la línea mediana."""
+def ritmo_ht_ajustado(datos):
+    """Proyección al final del partido: 1ª mitad × 2 × factor, según si el partido es reñido al medio tiempo."""
     ml, mv = datos.get("mitad_local"), datos.get("mitad_visita")
+    if ml is None or mv is None:
+        return None, None
+    grupo = "reñido" if abs(ml - mv) <= UMBRAL_RENIDO else "abierto"
+    factor = FACTOR_RENIDO if grupo == "reñido" else FACTOR_ABIERTO
+    return (ml + mv) * 2 * factor, grupo
+
+
+def registrar_medio_tiempo(datos, previo):
+    """Guarda la señal de la regla v2 al medio tiempo, con la línea mediana."""
+    ritmo, _ = ritmo_ht_ajustado(datos)
     linea = previo.get("linea_mediana")
-    if ml is None or mv is None or linea is None:
+    if ritmo is None or linea is None:
         return
-    ritmo = (ml + mv) * 2
     if ritmo >= linea + UMBRAL:
         senal = "OVER"
     elif ritmo <= linea - UMBRAL:
         senal = "UNDER"
     else:
         senal = "NINGUNA"
-    datos["ritmo_ht"] = ritmo
+    datos["ritmo_ht"] = round(ritmo, 1)
     datos["senal_ht"] = senal
+    datos["version_regla"] = VERSION_REGLA
 
 
 def notificar_senal_medio_tiempo(g, datos, previo):
-    """Envía una notificación si al medio tiempo el ritmo está a 5+ puntos de la línea mediana."""
+    """Envía una notificación si al medio tiempo la proyección ajustada está a 5+ puntos de la línea mediana."""
     if previo.get("notificado_ht"):
         return
-    ml, mv = datos.get("mitad_local"), datos.get("mitad_visita")
+    ritmo, _ = ritmo_ht_ajustado(datos)
     linea = previo.get("linea_mediana")
-    if ml is None or mv is None or linea is None:
+    if ritmo is None or linea is None:
         return
-    ritmo = (ml + mv) * 2
     if abs(ritmo - linea) < UMBRAL:
         return
     lado = "OVER" if ritmo > linea else "UNDER"
@@ -173,7 +188,7 @@ def notificar_senal_medio_tiempo(g, datos, previo):
         messaging.send(messaging.Message(
             notification=messaging.Notification(
                 title=f"Señal al medio tiempo: {lado}",
-                body=f"{g['teams']['away']['name']} @ {g['teams']['home']['name']} · ritmo {ritmo} vs línea {linea}",
+                body=f"{g['teams']['away']['name']} @ {g['teams']['home']['name']} · ritmo {round(ritmo, 1)} vs línea {linea}",
             ),
             android=messaging.AndroidConfig(
                 priority="high",
