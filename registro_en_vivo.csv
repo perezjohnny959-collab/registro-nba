@@ -37,3 +37,8 @@ id,fecha_utc,equipo_local,equipo_visita,capturado_utc,linea_mediana,n_casas,line
 519582,2026-10-27T00:30:00+00:00,Houston Rockets,Atlanta Hawks,2026-10-26T17:54+00:00,229.5,9,229.5,1.94,1.93,230.0,129.0
 519583,2026-10-27T01:00:00+00:00,Utah Jazz,Memphis Grizzlies,2026-10-26T17:54+00:00,237.5,7,,,,215.0,110.0
 519584,2026-10-27T02:00:00+00:00,Denver Nuggets,Golden State Warriors,2026-10-26T17:54+00:00,233.5,9,233.5,1.93,1.93,248.0,116.0
+519585,2026-10-27T23:30:00+00:00,Boston Celtics,Brooklyn Nets,2026-10-27T17:01+00:00,222.5,9,223.5,1.94,1.93,,
+519586,2026-10-28T00:00:00+00:00,New York Knicks,Detroit Pistons,2026-10-27T17:01+00:00,218.5,9,219.0,1.93,1.94,,
+519587,2026-10-28T00:00:00+00:00,San Antonio Spurs,Sacramento Kings,2026-10-27T17:01+00:00,230.5,9,231.0,1.94,1.93,,
+519588,2026-10-28T03:00:00+00:00,Los Angeles Lakers,Portland Trail Blazers,2026-10-27T17:01+00:00,236.5,9,236.5,1.93,1.92,,
+519589,2026-10-28T23:00:00+00:00,Indiana Pacers,Philadelphia 76ers,2026-10-27T17:01+00:00,238.5,6,,,,,
