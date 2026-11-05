@@ -103,3 +103,5 @@ id,fecha_utc,equipo_local,equipo_visita,capturado_utc,linea_mediana,n_casas,line
 519651,2026-11-05T02:30:00+00:00,San Antonio Spurs,Dallas Mavericks,2026-11-04T19:05+00:00,227.5,9,226.5,1.93,1.94,223.0,119.0
 519652,2026-11-05T03:00:00+00:00,Sacramento Kings,Los Angeles Lakers,2026-11-04T19:05+00:00,234.5,9,234.0,1.93,1.94,219.0,115.0
 519653,2026-11-05T03:30:00+00:00,Los Angeles Clippers,Miami Heat,2026-11-04T19:05+00:00,233.5,9,233.0,1.92,1.95,233.0,119.0
+519654,2026-11-06T02:00:00+00:00,Phoenix Suns,Orlando Magic,2026-11-05T19:14+00:00,223.0,9,222.5,1.94,1.93,,
+519655,2026-11-06T03:00:00+00:00,Golden State Warriors,Miami Heat,2026-11-05T19:14+00:00,234.5,9,234.0,1.95,1.92,,
