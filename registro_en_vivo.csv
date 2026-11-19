@@ -197,3 +197,4 @@ id,fecha_utc,equipo_local,equipo_visita,capturado_utc,linea_mediana,n_casas,line
 519751,2026-11-19T02:30:00+00:00,Denver Nuggets,Boston Celtics,2026-11-18T19:44+00:00,222.5,9,223.0,1.93,1.92,206.0,110.0
 519753,2026-11-19T03:00:00+00:00,Los Angeles Lakers,Utah Jazz,2026-11-18T19:44+00:00,230.0,7,,,,206.0,110.0
 519754,2026-11-19T03:00:00+00:00,Sacramento Kings,Phoenix Suns,2026-11-18T19:44+00:00,228.5,9,228.5,1.93,1.93,235.0,125.0
+519758,2026-11-20T01:00:00+00:00,San Antonio Spurs,Los Angeles Clippers,2026-11-19T19:45+00:00,225.5,7,225.5,1.94,1.94,,
